@@ -1,63 +1,47 @@
-import logo from "./logo.svg";
 import "./App.css";
 import { useEffect } from "react";
 import config from "./aws-exports";
 
+import { createFNotes } from "./graphql/mutations";
+import { API } from "aws-amplify";
+import { listFNotes } from "./graphql/queries";
+import { onCreateFNotes } from "./graphql/subscriptions";
+
 function App() {
+  // query
   useEffect(() => {
     const pullData = async () => {
-      let data = await fetch(config.aws_appsync_graphqlEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "X-Api-Key": config.aws_appsync_apiKey,
-        },
-        body: JSON.stringify({
-          query: `query MyQuery {
-          listFNotes {
-            items {
-              id
-              name
-              notes {
-                items {
-                  content
-                  title
-                  id
-                  comments {
-                    items {
-                      content
-                      id
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-          `,
-        }),
-      });
-      data = await data.json();
+      const data = await API.graphql({ query: listFNotes });
       console.log(data);
     };
     pullData();
+
+    // subscription
+    const subscription = API.graphql({ query: onCreateFNotes }).subscribe({
+      next: fNoteData => {
+        console.log(fNoteData);
+      },
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  //mutation
+  const createNewFNotes = async () => {
+    const name = prompt("please give title to your field notes");
+    const newNotes = await API.graphql({
+      query: createFNotes,
+      variables: { input: { name } },
+    });
+  };
+
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+        <p>Demonstration of mutation ~</p>
+        <div>
+          <button onClick={createNewFNotes}>~click meeee~</button>
+        </div>
       </header>
     </div>
   );
